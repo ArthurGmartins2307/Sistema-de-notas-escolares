@@ -238,6 +238,19 @@ const schoolStats = computed(() => {
   }
 })
 
+// Cálculo das Disciplinas com Maior Dificuldade do Aluno Selecionado
+const weakestSubjects = computed(() => {
+  if (!selectedAluno.value) return []
+  
+  const gradesList = subjects.map(sub => {
+    const val = parseFloat(selectedAluno.value![sub.key as keyof Aluno]?.toString() || '0')
+    return { key: sub.key, label: sub.label, grade: isNaN(val) ? 0 : val }
+  })
+  
+  // Ordenar por nota (menor primeiro) e pegar as 3 piores
+  return gradesList.sort((a, b) => a.grade - b.grade).slice(0, 3)
+})
+
 // Selecionar um aluno para visualizar detalhes (Apenas Professor)
 const selectAluno = (aluno: Aluno) => {
   selectedAluno.value = aluno
@@ -481,7 +494,7 @@ const formatGrade = (val: number | string | null | undefined) => {
     </div>
 
     <!-- TELA 2: PORTAL E DASHBOARD DO COLÉGIO (Logado) -->
-    <div v-else class="portal-main-view">
+    <div v-else class="portal-main-view" :class="{ 'student-portal-fullwidth': userRole === 'aluno' }">
       
       <!-- BARRA LATERAL (Apenas para Professor) -->
       <aside v-if="userRole === 'professor'" class="sidebar">
@@ -792,6 +805,35 @@ const formatGrade = (val: number | string | null | undefined) => {
             </div>
           </section>
 
+          <!-- Seção: Disciplinas com Maior Dificuldade (visível sempre) -->
+          <section v-if="weakestSubjects.length > 0" class="weakness-section">
+            <div class="section-title-bar">
+              <h2>📉 Áreas de Atenção</h2>
+              <span class="badge-total-disciplines">Top 3 menores notas</span>
+            </div>
+            <div class="weakness-cards">
+              <div 
+                v-for="(ws, index) in weakestSubjects" 
+                :key="ws.key" 
+                class="weakness-card"
+                :class="{ 'worst': index === 0 }"
+              >
+                <div class="weakness-rank">#{{ index + 1 }}</div>
+                <div class="weakness-info">
+                  <span class="weakness-subject">{{ ws.label }}</span>
+                  <span class="weakness-grade" :class="ws.grade >= 7 ? 'score-pass' : 'score-fail'">{{ formatGrade(ws.grade) }}</span>
+                </div>
+                <div class="weakness-bar-track">
+                  <div 
+                    class="weakness-bar-fill" 
+                    :class="ws.grade >= 7 ? 'fill-pass' : 'fill-fail'"
+                    :style="{ width: `${Math.min(100, Math.max(0, ws.grade * 10))}%` }"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- Grade de Notas das 11 Disciplinas -->
           <section class="grades-section">
             <div class="section-title-bar">
@@ -1061,12 +1103,12 @@ const formatGrade = (val: number | string | null | undefined) => {
   overflow: hidden;
 }
 
-/* Ocultação da barra lateral para o Aluno */
-.is-student-role .portal-main-view {
+/* Layout Full-Width para o portal do Aluno */
+.portal-main-view.student-portal-fullwidth {
   grid-template-columns: 1fr !important;
 }
 
-.is-student-role .sidebar {
+.portal-main-view.student-portal-fullwidth .sidebar {
   display: none !important;
 }
 
@@ -1988,5 +2030,134 @@ const formatGrade = (val: number | string | null | undefined) => {
 
 .notification-toast.error {
   background: var(--danger-gradient);
+}
+
+/* Seção de Áreas de Atenção (Disciplinas com Maior Dificuldade) */
+.weakness-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.weakness-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weakness-card {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all var(--transition-fast);
+}
+
+.weakness-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--card-border-hover);
+  transform: translateX(3px);
+}
+
+.light-theme .weakness-card {
+  background: rgba(15, 23, 42, 0.015);
+}
+
+.light-theme .weakness-card:hover {
+  background: #f1f5f9;
+}
+
+.weakness-card.worst {
+  border-color: var(--danger-border);
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.04) 0%, rgba(225, 29, 72, 0.08) 100%);
+}
+
+.weakness-card.worst:hover {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.06) 0%, rgba(225, 29, 72, 0.12) 100%);
+}
+
+.weakness-rank {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.light-theme .weakness-rank {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.06);
+  color: #334155;
+}
+
+.weakness-card.worst .weakness-rank {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.weakness-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weakness-subject {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.weakness-grade {
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+}
+
+.weakness-bar-track {
+  width: 120px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.light-theme .weakness-bar-track {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.weakness-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@media (max-width: 768px) {
+  .weakness-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .weakness-bar-track {
+    width: 80px;
+  }
+  .weakness-rank {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
 }
 </style>
