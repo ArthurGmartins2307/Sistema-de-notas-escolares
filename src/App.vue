@@ -26,11 +26,15 @@ interface Aluno {
 // Estados Reativos
 const alunos = ref<Aluno[]>([])
 const searchQuery = ref('')
+const sortBy = ref('name-asc') // Critério de ordenação padrão: A-Z
 const selectedAluno = ref<Aluno | null>(null)
 const isEditingGrades = ref(false)
 const showAddModal = ref(false)
 const isSaving = ref(false)
 const notification = ref<{ type: 'success' | 'error'; message: string } | null>(null)
+
+// Controle de Tema (Padrão: Escuro)
+const isDarkMode = ref(true)
 
 // Cópia das notas para edição
 const editedGrades = ref<Record<string, number>>({})
@@ -90,15 +94,69 @@ const showNotification = (type: 'success' | 'error', message: string) => {
   }, 4000)
 }
 
-// Filtro de Alunos na barra lateral
+// Filtro e Ordenação de Alunos na barra lateral
 const filteredAlunos = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
-  if (!query) return alunos.value
   
-  return alunos.value.filter(aluno => 
-    aluno.nome.toLowerCase().includes(query) || 
-    aluno.turma.toLowerCase().includes(query)
-  )
+  // 1. Filtrar pelo termo de busca
+  let list = alunos.value
+  if (query) {
+    list = list.filter(aluno => 
+      aluno.nome.toLowerCase().includes(query) || 
+      aluno.turma.toLowerCase().includes(query)
+    )
+  }
+  
+  // 2. Ordenar de acordo com a preferência selecionada (cópia rasa para evitar mutar estado original)
+  return [...list].sort((a, b) => {
+    if (sortBy.value === 'name-asc') {
+      return a.nome.localeCompare(b.nome)
+    } else if (sortBy.value === 'name-desc') {
+      return b.nome.localeCompare(a.nome)
+    } else if (sortBy.value === 'media-desc') {
+      const mediaA = parseFloat(a.media?.toString() || '0')
+      const mediaB = parseFloat(b.media?.toString() || '0')
+      return mediaB - mediaA
+    } else if (sortBy.value === 'media-asc') {
+      const mediaA = parseFloat(a.media?.toString() || '0')
+      const mediaB = parseFloat(b.media?.toString() || '0')
+      return mediaA - mediaB
+    }
+    return 0
+  })
+})
+
+// Cálculo de Estatísticas Gerais do Colégio (Exibido no painel inicial)
+const schoolStats = computed(() => {
+  const list = alunos.value
+  if (list.length === 0) {
+    return { total: 0, media: 0, aprovados: 0, reprovados: 0, taxaAprovacao: 0 }
+  }
+  
+  let sumMedia = 0
+  let countAprovados = 0
+  let countReprovados = 0
+  
+  list.forEach(a => {
+    const mediaVal = parseFloat(a.media?.toString() || '0')
+    sumMedia += mediaVal
+    if (mediaVal >= 7) {
+      countAprovados++
+    } else {
+      countReprovados++
+    }
+  })
+  
+  const overallAvg = sumMedia / list.length
+  const approvalRate = (countAprovados / list.length) * 100
+  
+  return {
+    total: list.length,
+    media: overallAvg,
+    aprovados: countAprovados,
+    reprovados: countReprovados,
+    taxaAprovacao: approvalRate
+  }
 })
 
 // Selecionar um aluno para visualizar detalhes
@@ -236,20 +294,48 @@ const formatGrade = (val: number | string | null | undefined) => {
 </script>
 
 <template>
-  <div class="dashboard-container">
+  <!-- Main Container com binding de classe para Tema Claro/Escuro -->
+  <div class="dashboard-container" :class="{ 'light-theme': !isDarkMode }">
+    
     <!-- Barra Lateral (Sidebar): Lista de Alunos -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="app-logo">
-          <!-- Ícone Acadêmico em SVG -->
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7" />
-          </svg>
-          <span class="app-name">EduGrade</span>
+        <div class="header-top-row">
+          <div class="app-logo">
+            <!-- Ícone Acadêmico em SVG -->
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7" />
+            </svg>
+            <span class="app-name">Integração</span>
+          </div>
+
+          <!-- Seletor de Tema (Sun/Moon) com micro-animação -->
+          <button 
+            class="btn-theme-toggle" 
+            :title="isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'"
+            @click="isDarkMode = !isDarkMode"
+          >
+            <!-- Ícone de Sol (Se estiver no modo escuro) -->
+            <svg v-if="isDarkMode" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <!-- Ícone de Lua (Se estiver no modo claro) -->
+            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
         </div>
-        <p class="subtitle">Controle Escolar</p>
+        <p class="subtitle">Colégio Integração</p>
       </div>
 
       <div class="sidebar-actions">
@@ -265,6 +351,17 @@ const formatGrade = (val: number | string | null | undefined) => {
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
+        </div>
+
+        <!-- Filtros de Ordenação Inteligentes (Crescente, Decrescente, A-Z, Z-A) -->
+        <div class="filter-row">
+          <span class="filter-label">Ordenar:</span>
+          <select v-model="sortBy" class="sort-select">
+            <option value="name-asc">Nome (A - Z)</option>
+            <option value="name-desc">Nome (Z - A)</option>
+            <option value="media-desc">Média (Maior → Menor)</option>
+            <option value="media-asc">Média (Menor → Maior)</option>
+          </select>
         </div>
 
         <!-- Botão Adicionar Aluno -->
@@ -294,7 +391,7 @@ const formatGrade = (val: number | string | null | undefined) => {
             <div class="student-card-meta">
               <span class="student-class-badge">Turma {{ aluno.turma }}</span>
               <span class="student-gender-badge">
-                Sexo: {{ aluno.sexo === 'M' ? 'Masc' : 'Fem' }}
+                {{ aluno.sexo === 'M' ? 'Masc' : 'Fem' }}
               </span>
             </div>
           </div>
@@ -309,23 +406,88 @@ const formatGrade = (val: number | string | null | undefined) => {
       </div>
     </aside>
 
-    <!-- Área de Detalhes Principal -->
+    <!-- Área de Detalhes Principal / Dashboard Central -->
     <main class="main-content-panel">
       <!-- Exibição de Notificações Temporárias -->
       <div v-if="notification" class="notification-toast" :class="notification.type">
         <span>{{ notification.message }}</span>
       </div>
 
-      <!-- Estado Vazio: Nenhum Aluno Selecionado -->
+      <!-- Estado Ativo Inicial: Visão Geral de Indicadores (Dashboard Inteligente do Colégio) -->
       <div v-if="!selectedAluno" class="empty-state-container flex-center">
         <div class="empty-state-content">
           <div class="empty-illustration">
-            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
           </div>
-          <h2>EduGrade Dashboard</h2>
-          <p>Selecione um aluno na barra lateral para gerenciar suas notas escolares, visualizar sua média de aprovação e sincronizar informações com o banco de dados.</p>
+          <h2>Colégio Integração</h2>
+          <p class="empty-state-subtitle">Visão Geral do Rendimento Acadêmico Consolidado</p>
+          
+          <!-- Grid Inteligente de Indicadores Escolares em tempo real -->
+          <div class="dashboard-stats-grid">
+            <!-- Card 1: Total Alunos -->
+            <div class="stat-card">
+              <div class="stat-icon-box">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                  <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ schoolStats.total }}</span>
+                <span class="stat-label">Alunos Cadastrados</span>
+              </div>
+            </div>
+
+            <!-- Card 2: Média Geral da Escola -->
+            <div class="stat-card">
+              <div 
+                class="stat-icon-box"
+                :class="schoolStats.media >= 7 ? 'success' : 'danger'"
+              >
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ formatGrade(schoolStats.media) }}</span>
+                <span class="stat-label">Média Geral do Colégio</span>
+              </div>
+            </div>
+
+            <!-- Card 3: Taxa de Aprovação -->
+            <div class="stat-card">
+              <div class="stat-icon-box success">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ schoolStats.taxaAprovacao.toFixed(1) }}%</span>
+                <span class="stat-label">Taxa Geral de Aprovação</span>
+              </div>
+            </div>
+
+            <!-- Card 4: Distribuição Aprovados vs Retidos -->
+            <div class="stat-card">
+              <div class="stat-icon-box">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ schoolStats.aprovados }} / {{ schoolStats.reprovados }}</span>
+                <span class="stat-label">Aprovados vs Retidos</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="select-instructions-text">Selecione um aluno na barra lateral esquerda para gerenciar sua ficha individual, aplicar notas nas 11 disciplinas ou cadastrar novos estudantes.</p>
         </div>
       </div>
 
@@ -374,7 +536,7 @@ const formatGrade = (val: number | string | null | undefined) => {
           </div>
         </header>
 
-        <!-- Caixa de Status Condicional (Aprovado / Reprovado) -->
+        <!-- Caixa de Status Condicional Elegante (Aprovado / Reprovado) -->
         <section 
           class="status-outcome-card"
           :class="parseFloat(selectedAluno.media?.toString() || '0') >= 7 ? 'status-pass' : 'status-fail'"
@@ -382,11 +544,11 @@ const formatGrade = (val: number | string | null | undefined) => {
           <div class="status-content">
             <div class="status-icon-glow">
               <!-- Ícone Check (Aprovado) -->
-              <svg v-if="parseFloat(selectedAluno.media?.toString() || '0') >= 7" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg v-if="parseFloat(selectedAluno.media?.toString() || '0') >= 7" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <!-- Ícone Cruz/Alerta (Reprovado) -->
-              <svg v-else viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg v-else viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -474,7 +636,7 @@ const formatGrade = (val: number | string | null | undefined) => {
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
-                <span>As notas salvas recalcularão imediatamente a média e serão sincronizadas com o MySQL.</span>
+                <span>As notas salvas serão imediatamente sincronizadas com o banco de dados do Colégio.</span>
               </div>
               <div class="action-buttons">
                 <button class="btn-secondary" :disabled="isSaving" @click="cancelEditGrades">
@@ -575,11 +737,19 @@ const formatGrade = (val: number | string | null | undefined) => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 .sidebar-header {
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .app-logo {
@@ -590,12 +760,42 @@ const formatGrade = (val: number | string | null | undefined) => {
 }
 
 .app-name {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: 0.5px;
   background: var(--primary-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Botão Alternador de Tema */
+.btn-theme-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: var(--card-border-hover);
+}
+
+.light-theme .btn-theme-toggle {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.light-theme .btn-theme-toggle:hover {
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .subtitle {
@@ -603,7 +803,7 @@ const formatGrade = (val: number | string | null | undefined) => {
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
   font-weight: 600;
 }
 
@@ -611,8 +811,8 @@ const formatGrade = (val: number | string | null | undefined) => {
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .search-box-wrapper {
@@ -636,9 +836,66 @@ const formatGrade = (val: number | string | null | undefined) => {
   pointer-events: none;
 }
 
+/* Linha de Ordenação */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sort-select {
+  flex: 1;
+  height: 34px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.4);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Botão Adicionar Aluno */
 .add-student-btn {
   width: 100%;
   height: 38px;
+}
+
+/* Correções específicas para inputs e selects no modo claro */
+.light-theme .search-input,
+.light-theme .sort-select,
+.light-theme .grade-input,
+.light-theme select,
+.light-theme input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.light-theme .search-icon {
+  color: #94a3b8;
+}
+
+.light-theme .input-grade-wrapper {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
 }
 
 /* Lista de Alunos */
@@ -659,7 +916,7 @@ const formatGrade = (val: number | string | null | undefined) => {
 }
 
 .student-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.015);
   border: 1px solid var(--card-border);
   border-radius: 10px;
   padding: 14px;
@@ -679,7 +936,6 @@ const formatGrade = (val: number | string | null | undefined) => {
 .student-card.active {
   background: rgba(99, 102, 241, 0.08);
   border-color: var(--primary);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
 }
 
 .student-card-info {
@@ -709,6 +965,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   font-weight: 500;
 }
 
+.light-theme .student-class-badge {
+  background: rgba(15, 23, 42, 0.05);
+}
+
 .student-media-badge {
   padding: 6px 10px;
   border-radius: 6px;
@@ -722,14 +982,12 @@ const formatGrade = (val: number | string | null | undefined) => {
   background: var(--success-bg);
   color: var(--success);
   border: 1px solid var(--success-border);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.1);
 }
 
 .media-fail {
   background: var(--danger-bg);
   color: var(--danger);
   border: 1px solid var(--danger-border);
-  box-shadow: 0 0 8px rgba(244, 63, 94, 0.1);
 }
 
 /* Painel de Conteúdo Principal */
@@ -739,9 +997,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   overflow-y: auto;
   position: relative;
   background-color: var(--bg-primary);
+  transition: background-color 0.4s ease;
 }
 
-/* Estado Vazio */
+/* Estado Vazio - Grid de Estatísticas Escolares */
 .empty-state-container {
   height: 100%;
   padding: 40px;
@@ -749,33 +1008,118 @@ const formatGrade = (val: number | string | null | undefined) => {
 
 .empty-state-content {
   text-align: center;
-  max-width: 480px;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .empty-illustration {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   color: var(--primary);
   opacity: 0.8;
-  filter: drop-shadow(0 4px 12px var(--primary-glow));
   animation: float 4s ease-in-out infinite;
 }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-6px); }
 }
 
 .empty-state-content h2 {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   color: var(--text-primary);
 }
 
-.empty-state-content p {
-  font-size: 14px;
+.empty-state-subtitle {
+  font-size: 13px;
   color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+
+.select-instructions-text {
+  font-size: 13px;
+  color: var(--text-muted);
   line-height: 1.6;
+  max-width: 520px;
+}
+
+/* Dashboard Grid de Indicadores */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 600px) {
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-card:hover {
+  border-color: var(--card-border-hover);
+  transform: translateY(-2px);
+  background: var(--card-hover-bg);
+}
+
+.stat-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--primary-glow);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon-box.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.stat-icon-box.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-weight: 500;
 }
 
 /* Painel de Detalhes do Aluno */
@@ -850,6 +1194,11 @@ const formatGrade = (val: number | string | null | undefined) => {
   border-radius: 6px;
 }
 
+.light-theme .info-tag {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.05);
+}
+
 .info-tag strong {
   color: var(--text-primary);
   font-weight: 500;
@@ -872,73 +1221,54 @@ const formatGrade = (val: number | string | null | undefined) => {
 /* CAIXA DE STATUS (APROVADO / REPROVADO) */
 .status-outcome-card {
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px 24px;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
 }
 
-.status-outcome-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 150px;
-  height: 100%;
-  opacity: 0.1;
-  pointer-events: none;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: right center;
-}
-
 .status-pass {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.12) 100%);
   border: 1px solid var(--success-border);
-  box-shadow: 0 8px 32px -4px rgba(16, 185, 129, 0.15);
 }
 
 .status-fail {
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(225, 29, 72, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.06) 0%, rgba(225, 29, 72, 0.12) 100%);
   border: 1px solid var(--danger-border);
-  box-shadow: 0 8px 32px -4px rgba(244, 63, 94, 0.15);
 }
 
 .status-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 18px;
   z-index: 1;
   position: relative;
 }
 
 .status-icon-glow {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: white;
 }
 
 .status-pass .status-icon-glow {
   background: var(--success);
-  color: white;
-  box-shadow: 0 0 16px var(--success-glow);
 }
 
 .status-fail .status-icon-glow {
   background: var(--danger);
-  color: white;
-  box-shadow: 0 0 16px var(--danger-glow);
 }
 
 .status-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .status-pass .status-title {
@@ -952,12 +1282,12 @@ const formatGrade = (val: number | string | null | undefined) => {
 .status-description {
   font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .status-description strong {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 /* Seção de Notas por Disciplina */
@@ -989,6 +1319,11 @@ const formatGrade = (val: number | string | null | undefined) => {
   color: var(--text-secondary);
 }
 
+.light-theme .badge-total-disciplines {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.05);
+}
+
 /* Grid de Disciplinas */
 .grades-grid {
   display: grid;
@@ -997,7 +1332,7 @@ const formatGrade = (val: number | string | null | undefined) => {
 }
 
 .grade-item-card {
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.012);
   border: 1px solid var(--card-border);
   border-radius: 10px;
   padding: 16px;
@@ -1010,6 +1345,11 @@ const formatGrade = (val: number | string | null | undefined) => {
 .grade-item-card:hover {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+.light-theme .grade-item-card:hover {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .grade-card-top {
@@ -1046,6 +1386,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   overflow: hidden;
 }
 
+.light-theme .progress-bar-track {
+  background: rgba(15, 23, 42, 0.05);
+}
+
 .progress-bar-fill {
   height: 100%;
   border-radius: 3px;
@@ -1054,18 +1398,21 @@ const formatGrade = (val: number | string | null | undefined) => {
 
 .fill-pass {
   background: var(--success-gradient);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
 }
 
 .fill-fail {
   background: var(--danger-gradient);
-  box-shadow: 0 0 6px rgba(244, 63, 94, 0.3);
 }
 
 /* MODO EDIÇÃO */
 .grade-item-card.edit-mode {
-  background: rgba(17, 24, 39, 0.3);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(17, 24, 39, 0.2);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.light-theme .grade-item-card.edit-mode {
+  background: #f8fafc;
+  border-color: rgba(0, 0, 0, 0.05);
 }
 
 .edit-grade-group {
@@ -1087,6 +1434,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   border-radius: 8px;
   padding: 0 10px;
   transition: all var(--transition-fast);
+}
+
+.light-theme .input-grade-wrapper {
+  background: #ffffff;
 }
 
 .input-grade-wrapper:focus-within {
@@ -1113,7 +1464,7 @@ const formatGrade = (val: number | string | null | undefined) => {
 }
 
 .editing-actions-bar {
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.012);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 16px 20px;
@@ -1180,6 +1531,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   color: var(--text-primary);
 }
 
+.light-theme .btn-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .form-row {
   display: flex;
   gap: 14px;
@@ -1198,6 +1553,10 @@ const formatGrade = (val: number | string | null | undefined) => {
   padding-top: 16px;
 }
 
+.light-theme .modal-footer {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
 /* Notificações Flutuantes (Toast) */
 .notification-toast {
   position: absolute;
@@ -1208,7 +1567,7 @@ const formatGrade = (val: number | string | null | undefined) => {
   font-size: 13px;
   font-weight: 600;
   color: white;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -1229,11 +1588,9 @@ const formatGrade = (val: number | string | null | undefined) => {
 
 .notification-toast.success {
   background: var(--success-gradient);
-  box-shadow: 0 8px 24px var(--success-glow);
 }
 
 .notification-toast.error {
   background: var(--danger-gradient);
-  box-shadow: 0 8px 24px var(--danger-glow);
 }
 </style>
