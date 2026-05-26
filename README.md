@@ -375,16 +375,10 @@ Vue.js → Axios → Express → MySQL
 
 # 🛠️ Melhorias Futuras
 
-* Tela de login
 * Cadastro via formulário
-* Edição de notas
-* Exclusão de alunos
 * Dashboard
 * Ranking escolar
 * Média por turma
-* Sistema de aprovação/reprovação
-* Responsividade
-* Dark mode
 * JWT Authentication
 
 ---
