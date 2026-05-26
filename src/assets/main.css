@@ -28,16 +28,7 @@ body {
   height: 100vh;
   background-color: var(--bg-primary);
   overflow: hidden;
-}
-
-@media (max-width: 900px) {
-  .dashboard-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    height: auto;
-    min-height: 100vh;
-    overflow: auto;
-  }
+  transition: background-color 0.4s ease;
 }
 
 /* Componentes de Interface Globais */
@@ -129,6 +120,21 @@ input:focus, select:focus {
   background: rgba(17, 24, 39, 0.8);
 }
 
+/* Correções específicas globais para o Modo Claro */
+.light-theme input, 
+.light-theme select, 
+.light-theme option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+.light-theme input:focus, 
+.light-theme select:focus {
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+}
+
 /* Efeito de Modal Blur */
 .modal-backdrop {
   position: fixed;
@@ -171,5 +177,125 @@ input:focus, select:focus {
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* ========================================== */
+/* RESPONSIVIDADE NATIVA PARA CELULARES       */
+/* ========================================== */
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  
+  /* Por padrão no celular, exibe apenas a barra lateral (lista) */
+  .sidebar {
+    width: 100% !important;
+    height: 100vh !important;
+    display: flex !important;
+    border-right: none !important;
+  }
+  
+  /* Por padrão no celular, esconde o painel de detalhes */
+  .main-content-panel {
+    display: none !important;
+    width: 100% !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Se houver um aluno selecionado: inverte os papéis */
+  .has-selection .sidebar {
+    display: none !important;
+  }
+  
+  .has-selection .main-content-panel {
+    display: block !important;
+  }
+  
+  /* Otimizações visuais de espaçamento para telas móveis */
+  .student-details-wrapper {
+    padding: 16px !important;
+    gap: 16px !important;
+  }
+  
+  .detail-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding-bottom: 12px !important;
+  }
+  
+  .detail-header-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  .detail-header-actions button {
+    flex: 1 !important;
+    min-width: 120px;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+  
+  .status-outcome-card {
+    padding: 16px !important;
+  }
+  
+  .status-content {
+    gap: 12px !important;
+  }
+  
+  .status-icon-glow {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  
+  .status-title {
+    font-size: 15px !important;
+  }
+  
+  .status-description {
+    font-size: 12px !important;
+  }
+  
+  .grades-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  
+  .grade-item-card {
+    padding: 12px !important;
+  }
+  
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .stat-card {
+    padding: 16px !important;
+  }
+  
+  .stat-value {
+    font-size: 18px !important;
+  }
+  
+  .stat-label {
+    font-size: 11px !important;
+  }
+  
+  .empty-state-container {
+    padding: 16px !important;
+  }
+  
+  .empty-state-content h2 {
+    font-size: 20px !important;
   }
 }

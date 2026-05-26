@@ -294,8 +294,14 @@ const formatGrade = (val: number | string | null | undefined) => {
 </script>
 
 <template>
-  <!-- Main Container com binding de classe para Tema Claro/Escuro -->
-  <div class="dashboard-container" :class="{ 'light-theme': !isDarkMode }">
+  <!-- Main Container com classes para Modo Claro/Escuro e seleção no Mobile -->
+  <div 
+    class="dashboard-container" 
+    :class="{ 
+      'light-theme': !isDarkMode, 
+      'has-selection': selectedAluno !== null 
+    }"
+  >
     
     <!-- Barra Lateral (Sidebar): Lista de Alunos -->
     <aside class="sidebar">
@@ -496,6 +502,14 @@ const formatGrade = (val: number | string | null | undefined) => {
         <!-- Cabeçalho de Dados do Aluno -->
         <header class="detail-header">
           <div class="student-profile-summary">
+            <!-- Botão Voltar (Exibido apenas no Mobile via CSS) -->
+            <button class="btn-back-mobile" @click="selectedAluno = null" title="Voltar para a Lista">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Voltar
+            </button>
+            
             <div class="avatar-circle">
               {{ selectedAluno.nome.charAt(0).toUpperCase() }}
             </div>
@@ -1156,6 +1170,45 @@ const formatGrade = (val: number | string | null | undefined) => {
   display: flex;
   align-items: center;
   gap: 16px;
+  width: 100%;
+}
+
+/* Botão Voltar Mobile */
+.btn-back-mobile {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 12px;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.btn-back-mobile:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.light-theme .btn-back-mobile {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.light-theme .btn-back-mobile:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 768px) {
+  .btn-back-mobile {
+    display: inline-flex;
+  }
 }
 
 .avatar-circle {
@@ -1170,6 +1223,7 @@ const formatGrade = (val: number | string | null | undefined) => {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-primary);
+  flex-shrink: 0;
 }
 
 .student-name-title {
