@@ -260,64 +260,6 @@ MySQL conectado!
 Servidor rodando na porta 3001
 ```
 
----
-
-# 🌐 Integração com Vue.js
-
-Arquivo:
-
-```bash
-src/App.vue
-```
-
-```vue
-<script setup>
-
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-
-const alunos = ref([])
-
-onMounted(async () => {
-
-  const response = await axios.get(
-    'http://localhost:3001/alunos'
-  )
-
-  alunos.value = response.data
-
-})
-
-</script>
-
-<template>
-
-  <div>
-
-    <h1>Lista de Alunos</h1>
-
-    <div
-      v-for="aluno in alunos"
-      :key="aluno.nome"
-    >
-
-      <hr>
-
-      <h2>{{ aluno.nome }}</h2>
-
-      <p>Turma: {{ aluno.turma }}</p>
-
-      <p>Média: {{ aluno.media }}</p>
-
-    </div>
-
-  </div>
-
-</template>
-```
-
----
-
 # 🚀 Rodando o Front-end
 
 Na raiz do projeto:
