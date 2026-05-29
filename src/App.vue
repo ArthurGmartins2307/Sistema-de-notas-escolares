@@ -238,17 +238,55 @@ const schoolStats = computed(() => {
   }
 })
 
-// Cálculo das Disciplinas com Maior Dificuldade do Aluno Selecionado
-const weakestSubjects = computed(() => {
-  if (!selectedAluno.value) return []
+// Interface para o status de atenção
+interface AttentionStatus {
+  type: 'none' | 'grave' | 'alerta'
+  subject?: {
+    key: string
+    label: string
+    grade: number
+  }
+  message: string
+}
+
+// Cálculo das Áreas de Atenção com base no rendimento
+const attentionStatus = computed<AttentionStatus | null>(() => {
+  if (!selectedAluno.value) return null
   
   const gradesList = subjects.map(sub => {
     const val = parseFloat(selectedAluno.value![sub.key as keyof Aluno]?.toString() || '0')
     return { key: sub.key, label: sub.label, grade: isNaN(val) ? 0 : val }
   })
   
-  // Ordenar por nota (menor primeiro) e pegar as 3 piores
-  return gradesList.sort((a, b) => a.grade - b.grade).slice(0, 3)
+  // Filtrar disciplinas com nota abaixo de 7
+  const belowSeven = gradesList.filter(s => s.grade < 7)
+  
+  // Se não houver nenhuma disciplina abaixo de 7
+  if (belowSeven.length === 0) {
+    return {
+      type: 'none',
+      message: 'Não há nenhuma área de atenção.'
+    }
+  }
+  
+  // Ordenar por nota (menor primeiro) para encontrar o pior rendimento
+  belowSeven.sort((a, b) => a.grade - b.grade)
+  const worst = belowSeven[0]
+  
+  // Se a nota mais baixa for 4 ou menor: Caso Grave (mostra apenas esta matéria)
+  if (worst.grade <= 4) {
+    return {
+      type: 'grave',
+      subject: worst,
+      message: `Desempenho grave na disciplina de ${worst.label}.`
+    }
+  }
+  
+  // Se for entre 4 (exclusivo) e 7 (exclusivo): Apenas mensagem de aviso prévio
+  return {
+    type: 'alerta',
+    message: 'Aviso prévio: O(A) aluno(a) possui notas abaixo da média que necessitam de atenção preventiva.'
+  }
 })
 
 // Selecionar um aluno para visualizar detalhes (Apenas Professor)
@@ -500,7 +538,7 @@ const formatGrade = (val: number | string | null | undefined) => {
       <aside v-if="userRole === 'professor'" class="sidebar">
         <div class="sidebar-header">
           <div class="header-top-row">
-            <div class="app-logo">
+            <div class="app-logo" @click="selectedAluno = null" style="cursor: pointer;">
               <!-- Ícone Acadêmico em SVG -->
               <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -1285,6 +1323,33 @@ const formatGrade = (val: number | string | null | undefined) => {
   background: #ffffff !important;
   color: #0f172a !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Estilos para inputs e selects no modo escuro (padrão) */
+.search-input,
+.sort-select,
+.grade-input,
+select,
+input {
+  background: rgba(15, 23, 42, 0.6) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--card-border) !important;
+}
+
+.search-input:focus,
+.sort-select:focus,
+.grade-input:focus,
+select:focus,
+input:focus {
+  outline: none;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+}
+
+.sort-select option,
+select option {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
 }
 
 .light-theme .search-icon {
