@@ -68,42 +68,71 @@ ProjetoLocal/
 
 ---
 
-# ⚙️ Como Executar o Projeto
+# ⚙️ Como Executar o Projeto (Após git clone)
+
+> **Atenção:** A pasta `node_modules` não é enviada ao GitHub (está no `.gitignore`).
+> Após clonar o repositório, você **sempre** deve reinstalar as dependências em dois lugares.
+
+---
 
 ## 1. Instalar Dependências do Front-end
 
-Na raiz do projeto:
+Na **pasta raiz** do projeto (`Sistema-de-notas-escolares`):
 
 ```bash
 npm install
 ```
 
-Instalar Axios:
+---
+
+## 2. Instalar Dependências do Back-end
+
+Entre na pasta `backend`:
 
 ```bash
-npm install axios
+cd backend
+npm install
 ```
 
 ---
 
-## 2. Configurar o Back-end
+## 3. Configurar a Senha do Banco de Dados
 
-Entrar na pasta backend:
+Abra o arquivo `backend/server.js` e substitua `SUA_SENHA` pela sua senha do MySQL:
 
-```bash
-cd backend
+```js
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: 'SUA_SENHA',  // ← coloque sua senha aqui
+    database: 'projeto_integrado'
+})
 ```
 
-Inicializar o Node:
+---
+
+## 4. Iniciar o Back-end
+
+Em um terminal, dentro da pasta `backend`:
 
 ```bash
-npm init -y
+node server.js
 ```
 
-Instalar dependências:
+Saída esperada:
+```
+Servidor rodando na porta 3001
+MySQL conectado!
+```
+
+---
+
+## 5. Iniciar o Front-end
+
+Em outro terminal, na **pasta raiz** do projeto:
 
 ```bash
-npm install express mysql2 cors
+npm run dev
 ```
 
 ---
