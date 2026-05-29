@@ -843,34 +843,60 @@ const formatGrade = (val: number | string | null | undefined) => {
             </div>
           </section>
 
-          <!-- Seção: Disciplinas com Maior Dificuldade (visível sempre) -->
-          <section v-if="weakestSubjects.length > 0" class="weakness-section">
+          <!-- Seção: Áreas de Atenção (nova lógica de estados) -->
+          <section v-if="attentionStatus" class="weakness-section">
             <div class="section-title-bar">
               <h2>📉 Áreas de Atenção</h2>
-              <span class="badge-total-disciplines">Top 3 menores notas</span>
             </div>
-            <div class="weakness-cards">
-              <div 
-                v-for="(ws, index) in weakestSubjects" 
-                :key="ws.key" 
-                class="weakness-card"
-                :class="{ 'worst': index === 0 }"
-              >
-                <div class="weakness-rank">#{{ index + 1 }}</div>
-                <div class="weakness-info">
-                  <span class="weakness-subject">{{ ws.label }}</span>
-                  <span class="weakness-grade" :class="ws.grade >= 7 ? 'score-pass' : 'score-fail'">{{ formatGrade(ws.grade) }}</span>
-                </div>
-                <div class="weakness-bar-track">
-                  <div 
-                    class="weakness-bar-fill" 
-                    :class="ws.grade >= 7 ? 'fill-pass' : 'fill-fail'"
-                    :style="{ width: `${Math.min(100, Math.max(0, ws.grade * 10))}%` }"
-                  ></div>
-                </div>
+
+            <!-- Estado: Nenhuma área de atenção (todas notas >= 7) -->
+            <div v-if="attentionStatus.type === 'none'" class="attention-card attention-none">
+              <div class="attention-icon-box attention-icon-none">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="attention-text">
+                <span class="attention-title">Parabéns! Sem áreas de atenção</span>
+                <span class="attention-desc">Não há nenhuma área de atenção. Todas as notas estão acima da média mínima.</span>
+              </div>
+            </div>
+
+            <!-- Estado: Alerta prévio (notas entre 4 e 7) -->
+            <div v-else-if="attentionStatus.type === 'alerta'" class="attention-card attention-alerta">
+              <div class="attention-icon-box attention-icon-alerta">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div class="attention-text">
+                <span class="attention-title">Aviso Prévio</span>
+                <span class="attention-desc">{{ attentionStatus.message }}</span>
+              </div>
+            </div>
+
+            <!-- Estado: Situação grave (nota <= 4) -->
+            <div v-else-if="attentionStatus.type === 'grave'" class="attention-card attention-grave">
+              <div class="attention-icon-box attention-icon-grave">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <div class="attention-text">
+                <span class="attention-title">Alerta Crítico</span>
+                <span class="attention-desc">{{ attentionStatus.message }}</span>
+              </div>
+              <div v-if="attentionStatus.subject" class="attention-subject-badge">
+                <span class="attention-subject-name">{{ attentionStatus.subject.label }}</span>
+                <span class="attention-subject-grade">{{ formatGrade(attentionStatus.subject.grade) }}</span>
               </div>
             </div>
           </section>
+
 
           <!-- Grade de Notas das 11 Disciplinas -->
           <section class="grades-section">
@@ -2097,22 +2123,16 @@ select option {
   background: var(--danger-gradient);
 }
 
-/* Seção de Áreas de Atenção (Disciplinas com Maior Dificuldade) */
+/* ====================================== */
+/* NOVOS ESTILOS - CARDS DE ÁREA DE ATENÇÃO */
+/* ====================================== */
 .weakness-section {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.weakness-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.weakness-card {
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid var(--card-border);
+.attention-card {
   border-radius: 12px;
   padding: 16px 20px;
   display: flex;
@@ -2121,108 +2141,100 @@ select option {
   transition: all var(--transition-fast);
 }
 
-.weakness-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--card-border-hover);
-  transform: translateX(3px);
+/* Nenhuma área de atenção - Verde */
+.attention-none {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.1) 100%);
+  border: 1px solid var(--success-border);
 }
 
-.light-theme .weakness-card {
-  background: rgba(15, 23, 42, 0.015);
+/* Aviso prévio - Amarelo/Laranja */
+.attention-alerta {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
-.light-theme .weakness-card:hover {
-  background: #f1f5f9;
-}
-
-.weakness-card.worst {
-  border-color: var(--danger-border);
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.04) 0%, rgba(225, 29, 72, 0.08) 100%);
-}
-
-.weakness-card.worst:hover {
+/* Alerta crítico - Vermelho */
+.attention-grave {
   background: linear-gradient(135deg, rgba(244, 63, 94, 0.06) 0%, rgba(225, 29, 72, 0.12) 100%);
+  border: 1px solid var(--danger-border);
 }
 
-.weakness-rank {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+.attention-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.light-theme .weakness-rank {
-  background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.06);
-  color: #334155;
+.attention-icon-none {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
 
-.weakness-card.worst .weakness-rank {
+.attention-icon-alerta {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.attention-icon-grave {
   background: var(--danger-bg);
   color: var(--danger);
-  border-color: var(--danger-border);
+  border: 1px solid var(--danger-border);
 }
 
-.weakness-info {
+.attention-text {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.weakness-subject {
+.attention-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.weakness-grade {
-  font-size: 16px;
-  font-weight: 700;
-  min-width: 50px;
-  text-align: right;
+.attention-none .attention-title { color: var(--success); }
+.attention-alerta .attention-title { color: #f59e0b; }
+.attention-grave .attention-title { color: var(--danger); }
+
+.attention-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.weakness-bar-track {
-  width: 120px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 3px;
-  overflow: hidden;
+.attention-subject-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  padding: 8px 14px;
   flex-shrink: 0;
+  gap: 2px;
 }
 
-.light-theme .weakness-bar-track {
-  background: rgba(15, 23, 42, 0.06);
+.attention-subject-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-.weakness-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.8s cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-@media (max-width: 768px) {
-  .weakness-card {
-    padding: 12px 14px;
-    gap: 10px;
-  }
-  .weakness-bar-track {
-    width: 80px;
-  }
-  .weakness-rank {
-    width: 30px;
-    height: 30px;
-    font-size: 12px;
-  }
+.attention-subject-grade {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--danger);
+  line-height: 1;
 }
 </style>
