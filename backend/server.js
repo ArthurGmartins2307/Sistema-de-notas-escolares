@@ -10,24 +10,25 @@ app.use(express.json())
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: 'senaiSQL2026',
+    password: 'Arthurzinho3003',
     database: 'projeto_integrado'
 })
 
 db.connect((err) => {
     if(err){
-        console.log('Erro ao conectar:', err)
+        console.log(err)
     } else {
         console.log('MySQL conectado!')
     }
 })
 
 app.get('/alunos', (req, res) => {
+
     const sql = `
         SELECT
             aluno.id,
             aluno.nome,
-            DATE_FORMAT(aluno.nascimento, '%Y-%m-%d') as nascimento,
+            aluno.nascimento,
             aluno.turma,
             aluno.sexo,
             notas.matematica,
@@ -45,140 +46,96 @@ app.get('/alunos', (req, res) => {
         FROM aluno
         LEFT JOIN notas
         ON aluno.id = notas.id_aluno
-        ORDER BY aluno.nome ASC
     `
 
     db.query(sql, (err, result) => {
         if(err){
-            console.error('Erro ao buscar alunos:', err)
-            res.status(500).send(err)
+            console.error(err)
+            res.status(500).json({ error: err.message })
         } else {
             res.json(result)
         }
     })
+
 })
 
-// Cadastrar novo aluno e criar registro de notas padrão
 app.post('/alunos', (req, res) => {
-    const { nome, nascimento, turma, sexo } = req.body
+    const { nome, turma, nascimento, sexo } = req.body
     if (!nome || !turma) {
-        return res.status(400).json({ error: 'Nome e Turma são obrigatórios.' })
+        return res.status(400).json({ error: 'Nome e turma são obrigatórios.' })
     }
 
-    const sqlAluno = 'INSERT INTO aluno (nome, nascimento, turma, sexo) VALUES (?, ?, ?, ?)'
-    db.query(sqlAluno, [nome, nascimento || null, turma, sexo || null], (err, result) => {
-        if (err) {
-            console.error('Erro ao cadastrar aluno:', err)
-            return res.status(500).json({ error: err.message })
+    const sqlAluno = 'INSERT INTO aluno (nome, turma, nascimento, sexo) VALUES (?, ?, ?, ?)'
+    db.query(sqlAluno, [nome, turma, nascimento, sexo], (err, result) => {
+        if(err){
+            console.error(err)
+            return res.status(500).json({ error: 'Erro ao salvar aluno no banco de dados.' })
         }
         
         const id_aluno = result.insertId
         
-        // Criar registro na tabela notas com notas zeradas
         const sqlNotas = `
             INSERT INTO notas (
-                id_aluno, matematica, portugues, historia, geografia, biologia, 
+                id_aluno, matematica, portugues, historia, geografia, biologia,
                 quimica, fisica, sociologia, filosofia, artes, educacao_fisica
             ) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         `
         db.query(sqlNotas, [id_aluno], (errNotas) => {
-            if (errNotas) {
-                console.error('Erro ao criar notas do aluno:', errNotas)
-                return res.status(500).json({ error: errNotas.message })
+            if(errNotas){
+                console.error(errNotas)
+                return res.status(500).json({ error: 'Erro ao inicializar notas do aluno.' })
             }
-            
-            res.status(201).json({
-                id: id_aluno,
-                nome,
-                nascimento,
-                turma,
-                sexo,
-                matematica: 0,
-                portugues: 0,
-                historia: 0,
-                geografia: 0,
-                biologia: 0,
-                quimica: 0,
-                fisica: 0,
-                sociologia: 0,
-                filosofia: 0,
-                artes: 0,
-                educacao_fisica: 0,
-                media: 0
-            })
+            res.status(201).json({ id: id_aluno, message: 'Aluno cadastrado com sucesso!' })
         })
     })
 })
 
-// Editar notas de um aluno
 app.put('/alunos/:id/notas', (req, res) => {
-    const id_aluno = req.params.id
+    const { id } = req.params
     const {
         matematica, portugues, historia, geografia, biologia,
         quimica, fisica, sociologia, filosofia, artes, educacao_fisica
     } = req.body
 
     const sql = `
-        UPDATE notas 
-        SET 
-            matematica = ?, 
-            portugues = ?, 
-            historia = ?, 
-            geografia = ?, 
-            biologia = ?, 
-            quimica = ?, 
-            fisica = ?, 
-            sociologia = ?, 
-            filosofia = ?, 
-            artes = ?, 
-            educacao_fisica = ?
+        UPDATE notas SET
+            matematica = ?, portugues = ?, historia = ?, geografia = ?, biologia = ?,
+            quimica = ?, fisica = ?, sociologia = ?, filosofia = ?, artes = ?, educacao_fisica = ?
         WHERE id_aluno = ?
     `
-
     const values = [
-        matematica || 0,
-        portugues || 0,
-        historia || 0,
-        geografia || 0,
-        biologia || 0,
-        quimica || 0,
-        fisica || 0,
-        sociologia || 0,
-        filosofia || 0,
-        artes || 0,
-        educacao_fisica || 0,
-        id_aluno
+        matematica, portugues, historia, geografia, biologia,
+        quimica, fisica, sociologia, filosofia, artes, educacao_fisica,
+        id
     ]
 
     db.query(sql, values, (err, result) => {
-        if (err) {
-            console.error('Erro ao atualizar notas:', err)
-            return res.status(500).json({ error: err.message })
+        if(err){
+            console.error(err)
+            res.status(500).json({ error: 'Erro ao salvar notas no banco de dados.' })
+        } else {
+            res.json({ message: 'Notas atualizadas com sucesso!' })
         }
-        res.json({ message: 'Notas atualizadas com sucesso!' })
     })
 })
 
-// Excluir aluno e suas notas
 app.delete('/alunos/:id', (req, res) => {
-    const id_aluno = req.params.id
+    const { id } = req.params
 
-    // Primeiro excluir as notas
-    const sqlNotas = 'DELETE FROM notas WHERE id_aluno = ?'
-    db.query(sqlNotas, [id_aluno], (err) => {
-        if (err) {
-            console.error('Erro ao deletar notas:', err)
-            return res.status(500).json({ error: err.message })
+    const sqlDeleteNotas = 'DELETE FROM notas WHERE id_aluno = ?'
+    db.query(sqlDeleteNotas, [id], (errNotas) => {
+        if(errNotas){
+            console.error(errNotas)
+            return res.status(500).json({ error: 'Erro ao excluir notas do aluno.' })
         }
 
-        // Depois excluir o aluno
-        const sqlAluno = 'DELETE FROM aluno WHERE id = ?'
-        db.query(sqlAluno, [id_aluno], (err2) => {
-            if (err2) {
-                console.error('Erro ao deletar aluno:', err2)
-                return res.status(500).json({ error: err2.message })
+        const sqlDeleteAluno = 'DELETE FROM aluno WHERE id = ?'
+        db.query(sqlDeleteAluno, [id], (errAluno) => {
+            if(errAluno){
+                console.error(errAluno)
+                return res.status(500).json({ error: 'Erro ao excluir aluno do banco de dados.' })
             }
-            res.json({ message: 'Aluno excluído com sucesso!' })
+            res.json({ message: 'Aluno removido com sucesso!' })
         })
     })
 })
